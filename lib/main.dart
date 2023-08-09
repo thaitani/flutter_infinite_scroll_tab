@@ -52,46 +52,42 @@ class _Content extends StatefulWidget {
 }
 
 class __ContentState extends State<_Content> {
-  late AutoScrollController _scrollController;
-  late ScrollController _pageController;
+  late AutoScrollController _tabScrollController;
+  late ScrollController _pageScrollController;
 
   int _selectIndex = 0;
   bool _isTapScrolling = false;
 
   int _convertContentIndex(int index) {
-    final i = index % contents.length;
-    return i;
+    return index % contents.length;
   }
 
   double getPageFromPixels(double pixels, double viewportDimension) {
-    final double actual = pixels / (viewportDimension);
+    final double actual = pixels / viewportDimension;
     final double round = actual.roundToDouble();
-    if ((actual - round).abs() < precisionErrorTolerance) {
-      return round;
-    }
-    return actual;
+    return (actual - round).abs() < precisionErrorTolerance ? round : actual;
   }
 
   @override
   void initState() {
-    _scrollController = AutoScrollController(axis: Axis.horizontal)
+    _tabScrollController = AutoScrollController(axis: Axis.horizontal)
       ..scrollToIndex(
         _selectIndex,
         preferPosition: AutoScrollPosition.middle,
       );
-    _pageController = ScrollController()
+    _pageScrollController = ScrollController()
       ..addListener(() {
         if (_isTapScrolling) {
           return;
         }
-        final page = getPageFromPixels(_pageController.position.pixels,
-            _pageController.position.viewportDimension);
+        final page = getPageFromPixels(_pageScrollController.position.pixels,
+            _pageScrollController.position.viewportDimension);
         final index = page.round();
         if (index != _selectIndex) {
           setState(() {
             _selectIndex = index;
           });
-          _scrollController.scrollToIndex(index,
+          _tabScrollController.scrollToIndex(index,
               preferPosition: AutoScrollPosition.middle);
         }
       });
@@ -100,8 +96,8 @@ class __ContentState extends State<_Content> {
 
   @override
   void dispose() {
-    _scrollController.dispose();
-    _pageController.dispose();
+    _tabScrollController.dispose();
+    _pageScrollController.dispose();
     super.dispose();
   }
 
@@ -109,7 +105,7 @@ class __ContentState extends State<_Content> {
     final keyIndex = isReverse ? -index - 1 : index;
     return AutoScrollTag(
       key: ValueKey(keyIndex),
-      controller: _scrollController,
+      controller: _tabScrollController,
       index: keyIndex,
       child: InkWell(
         onTap: () async {
@@ -117,10 +113,10 @@ class __ContentState extends State<_Content> {
             _isTapScrolling = true;
             _selectIndex = keyIndex;
           });
-          _scrollController.scrollToIndex(keyIndex,
+          _tabScrollController.scrollToIndex(keyIndex,
               preferPosition: AutoScrollPosition.middle);
-          await _pageController.animateTo(
-              _pageController.position.viewportDimension * keyIndex,
+          await _pageScrollController.animateTo(
+              _pageScrollController.position.viewportDimension * keyIndex,
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeOut);
           setState(() {
@@ -167,15 +163,15 @@ class __ContentState extends State<_Content> {
       Axis.horizontal,
       false,
     );
-    Key forwardListKey = UniqueKey();
-    Widget forwardList = SliverList(
+    Key forwardTabKey = UniqueKey();
+    Widget forwardTabList = SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) => tabContentBuilder(context, index, false),
       ),
-      key: forwardListKey,
+      key: forwardTabKey,
     );
 
-    Widget reverseList = SliverList(
+    Widget reverseTabList = SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) => tabContentBuilder(context, index, true),
       ),
@@ -209,15 +205,15 @@ class __ContentState extends State<_Content> {
               ),
             ),
             child: Scrollable(
-              controller: _scrollController,
+              controller: _tabScrollController,
               axisDirection: axisDirection,
               viewportBuilder: (BuildContext context, ViewportOffset offset) {
                 return Viewport(
                   offset: offset,
-                  center: forwardListKey,
+                  center: forwardTabKey,
                   slivers: [
-                    reverseList,
-                    forwardList,
+                    reverseTabList,
+                    forwardTabList,
                   ],
                   axisDirection: axisDirection,
                 );
@@ -228,7 +224,7 @@ class __ContentState extends State<_Content> {
         Expanded(
           child: Scrollable(
             physics: const PageScrollPhysics(),
-            controller: _pageController,
+            controller: _pageScrollController,
             axisDirection: axisDirection,
             viewportBuilder: (BuildContext context, ViewportOffset offset) {
               return Viewport(

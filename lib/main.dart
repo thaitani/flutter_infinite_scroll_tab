@@ -82,7 +82,6 @@ class __ContentState extends State<_Content> {
   void initState() {
     _selectIndex = widget.initialIndex;
     _tabScrollController = AutoScrollController(
-      initialScrollOffset: widget.width * widget.initialIndex,
       axis: Axis.horizontal,
     )..scrollToIndex(
         _selectIndex,

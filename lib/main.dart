@@ -157,7 +157,7 @@ class __ContentState extends State<_Content> {
         },
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: Colors.black,
+            color: Colors.black87,
             border: Border(
               bottom: BorderSide(
                 color:

@@ -22,12 +22,13 @@ class MyApp extends StatelessWidget {
   }
 }
 
-const contents = [
+const _contents = [
   'コンテンツAAAA',
   'コンテンツBB',
   'コンテンツCCCCCC',
   'コンテンツD',
   'コンテンツEEEEEEE',
+  'コンテンツFFFFF'
 ];
 
 class HomePage extends StatelessWidget {
@@ -55,11 +56,11 @@ class __ContentState extends State<_Content> {
   late AutoScrollController _tabScrollController;
   late ScrollController _pageScrollController;
 
-  int _selectIndex = 0;
+  int _selectIndex = 4;
   bool _isTapScrolling = false;
 
-  int _convertContentIndex(int index) {
-    return index % contents.length;
+  String _convertContent(int index) {
+    return _contents[index % _contents.length];
   }
 
   double getPageFromPixels(double pixels, double viewportDimension) {
@@ -75,26 +76,27 @@ class __ContentState extends State<_Content> {
         _selectIndex,
         preferPosition: AutoScrollPosition.middle,
       );
-    _pageScrollController = ScrollController()
-      ..addListener(() {
-        if (_isTapScrolling) {
-          return;
-        }
-        final page = getPageFromPixels(
-          _pageScrollController.position.pixels,
-          _pageScrollController.position.viewportDimension,
-        );
-        final index = page.round();
-        if (index != _selectIndex) {
-          setState(() {
-            _selectIndex = index;
+    _pageScrollController =
+        ScrollController(initialScrollOffset: 375.0 * _selectIndex)
+          ..addListener(() {
+            if (_isTapScrolling) {
+              return;
+            }
+            final page = getPageFromPixels(
+              _pageScrollController.position.pixels,
+              _pageScrollController.position.viewportDimension,
+            );
+            final index = page.round();
+            if (index != _selectIndex) {
+              setState(() {
+                _selectIndex = index;
+              });
+              _tabScrollController.scrollToIndex(
+                index,
+                preferPosition: AutoScrollPosition.middle,
+              );
+            }
           });
-          _tabScrollController.scrollToIndex(
-            index,
-            preferPosition: AutoScrollPosition.middle,
-          );
-        }
-      });
     super.initState();
   }
 
@@ -146,7 +148,7 @@ class __ContentState extends State<_Content> {
           child: Padding(
             padding: const EdgeInsets.all(3),
             child: Tab(
-              text: '${contents[_convertContentIndex(index)]} #$index',
+              text: '${_convertContent(index)} #$index',
             ),
           ),
         ),
@@ -158,12 +160,12 @@ class __ContentState extends State<_Content> {
     required BuildContext context,
     required int index,
   }) {
-    final contentIndex = index % contents.length;
+    final contentIndex = index % _contents.length;
     return Container(
       alignment: Alignment.center,
       color: Colors.grey[contentIndex * 100],
       child: Text(
-        '${contents[contentIndex]} #$index',
+        '${_convertContent(index)} #$index',
         style: const TextStyle(fontSize: 30),
       ),
     );

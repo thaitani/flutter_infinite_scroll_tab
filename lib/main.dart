@@ -28,7 +28,7 @@ const _contents = [
   'コンテンツCCCCCC',
   'コンテンツD',
   'コンテンツEEEEEEE',
-  'コンテンツFFFFF'
+  'コンテンツFFFFF',
 ];
 
 class HomePage extends StatelessWidget {
@@ -40,13 +40,22 @@ class HomePage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('InfiniteScrollTab Demo'),
       ),
-      body: const _Content(),
+      body: _Content(
+        width: MediaQuery.of(context).size.width,
+        initialIndex: 13,
+      ),
     );
   }
 }
 
 class _Content extends StatefulWidget {
-  const _Content();
+  const _Content({
+    this.initialIndex = 0,
+    required this.width,
+  });
+
+  final int initialIndex;
+  final double width;
 
   @override
   __ContentState createState() => __ContentState();
@@ -56,46 +65,49 @@ class __ContentState extends State<_Content> {
   late AutoScrollController _tabScrollController;
   late ScrollController _pageScrollController;
 
-  int _selectIndex = 4;
+  int _selectIndex = 0;
   bool _isTapScrolling = false;
 
   String _convertContent(int index) {
     return _contents[index % _contents.length];
   }
 
-  double getPageFromPixels(double pixels, double viewportDimension) {
-    final actual = pixels / viewportDimension;
+  double _getPageFromPixels(ScrollPosition position) {
+    final actual = position.pixels / position.viewportDimension;
     final round = actual.roundToDouble();
     return (actual - round).abs() < precisionErrorTolerance ? round : actual;
   }
 
   @override
   void initState() {
-    _tabScrollController = AutoScrollController(axis: Axis.horizontal)
-      ..scrollToIndex(
+    _selectIndex = widget.initialIndex;
+    _tabScrollController = AutoScrollController(
+      initialScrollOffset: widget.width * widget.initialIndex,
+      axis: Axis.horizontal,
+    )..scrollToIndex(
         _selectIndex,
         preferPosition: AutoScrollPosition.middle,
       );
     _pageScrollController =
-        ScrollController(initialScrollOffset: 375.0 * _selectIndex)
+        ScrollController(initialScrollOffset: widget.width * _selectIndex)
           ..addListener(() {
             if (_isTapScrolling) {
               return;
             }
-            final page = getPageFromPixels(
-              _pageScrollController.position.pixels,
-              _pageScrollController.position.viewportDimension,
+            final page = _getPageFromPixels(
+              _pageScrollController.position,
             );
             final index = page.round();
-            if (index != _selectIndex) {
-              setState(() {
-                _selectIndex = index;
-              });
-              _tabScrollController.scrollToIndex(
-                index,
-                preferPosition: AutoScrollPosition.middle,
-              );
+            if (index == _selectIndex) {
+              return;
             }
+            setState(() {
+              _selectIndex = index;
+            });
+            _tabScrollController.scrollToIndex(
+              index,
+              preferPosition: AutoScrollPosition.middle,
+            );
           });
     super.initState();
   }
@@ -107,7 +119,7 @@ class __ContentState extends State<_Content> {
     super.dispose();
   }
 
-  Widget tabContentBuilder({
+  Widget _tabContentBuilder({
     required BuildContext context,
     required int index,
   }) {
@@ -138,17 +150,23 @@ class __ContentState extends State<_Content> {
         },
         child: DecoratedBox(
           decoration: BoxDecoration(
+            color: Colors.black,
             border: Border(
               bottom: BorderSide(
                 color:
-                    index == _selectIndex ? Colors.black : Colors.transparent,
+                    index == _selectIndex ? Colors.black38 : Colors.transparent,
               ),
             ),
           ),
           child: Padding(
             padding: const EdgeInsets.all(3),
             child: Tab(
-              text: '${_convertContent(index)} #$index',
+              child: Text(
+                '${_convertContent(index)} #$index',
+                style: TextStyle(
+                  color: index == _selectIndex ? Colors.white : Colors.grey,
+                ),
+              ),
             ),
           ),
         ),
@@ -156,7 +174,7 @@ class __ContentState extends State<_Content> {
     );
   }
 
-  Widget contentBuilder({
+  Widget _contentBuilder({
     required BuildContext context,
     required int index,
   }) {
@@ -176,7 +194,7 @@ class __ContentState extends State<_Content> {
     return Column(
       children: [
         SizedBox(
-          height: 50,
+          height: 42,
           child: DecoratedBox(
             decoration: const BoxDecoration(
               border: Border(
@@ -187,7 +205,7 @@ class __ContentState extends State<_Content> {
               ),
             ),
             child: InfiniteListView(
-              itemBuilder: (context, index) => tabContentBuilder(
+              itemBuilder: (context, index) => _tabContentBuilder(
                 context: context,
                 index: index,
               ),
@@ -198,7 +216,7 @@ class __ContentState extends State<_Content> {
         ),
         Expanded(
           child: InfiniteListView(
-            itemBuilder: (context, index) => contentBuilder(
+            itemBuilder: (context, index) => _contentBuilder(
               context: context,
               index: index,
             ),

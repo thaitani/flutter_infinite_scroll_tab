@@ -108,28 +108,28 @@ class __ContentState extends State<_Content> {
   Widget tabContentBuilder({
     required BuildContext context,
     required int index,
-    required bool isReverse,
   }) {
-    final keyIndex = isReverse ? -index - 1 : index;
     return AutoScrollTag(
-      key: ValueKey(keyIndex),
+      key: ValueKey(index),
       controller: _tabScrollController,
-      index: keyIndex,
+      index: index,
       child: InkWell(
         onTap: () async {
           setState(() {
             _isTapScrolling = true;
-            _selectIndex = keyIndex;
+            _selectIndex = index;
           });
-          await _tabScrollController.scrollToIndex(
-            keyIndex,
-            preferPosition: AutoScrollPosition.middle,
-          );
-          await _pageScrollController.animateTo(
-            _pageScrollController.position.viewportDimension * keyIndex,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
+          await Future.wait([
+            _tabScrollController.scrollToIndex(
+              index,
+              preferPosition: AutoScrollPosition.middle,
+            ),
+            _pageScrollController.animateTo(
+              _pageScrollController.position.viewportDimension * index,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            )
+          ]);
           setState(() {
             _isTapScrolling = false;
           });
@@ -138,16 +138,15 @@ class __ContentState extends State<_Content> {
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: keyIndex == _selectIndex
-                    ? Colors.black
-                    : Colors.transparent,
+                color:
+                    index == _selectIndex ? Colors.black : Colors.transparent,
               ),
             ),
           ),
           child: Padding(
             padding: const EdgeInsets.all(3),
             child: Tab(
-              text: '${contents[_convertContentIndex(keyIndex)]} #$keyIndex',
+              text: '${contents[_convertContentIndex(index)]} #$index',
             ),
           ),
         ),
@@ -158,14 +157,13 @@ class __ContentState extends State<_Content> {
   Widget contentBuilder({
     required BuildContext context,
     required int index,
-    required bool isReverse,
   }) {
-    final keyIndex = isReverse ? -index - 1 : index;
+    final contentIndex = index % contents.length;
     return Container(
       alignment: Alignment.center,
-      color: Colors.grey[_convertContentIndex(keyIndex) * 100],
+      color: Colors.grey[contentIndex * 100],
       child: Text(
-        '${contents[_convertContentIndex(keyIndex)]} #$keyIndex',
+        '${contents[contentIndex]} #$index',
         style: const TextStyle(fontSize: 30),
       ),
     );
@@ -173,55 +171,6 @@ class __ContentState extends State<_Content> {
 
   @override
   Widget build(BuildContext context) {
-    final axisDirection = getAxisDirectionFromAxisReverseAndDirectionality(
-      context,
-      Axis.horizontal,
-      false,
-    );
-    final forwardTabKey = UniqueKey();
-    final forwardTabList = SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) => tabContentBuilder(
-          context: context,
-          index: index,
-          isReverse: false,
-        ),
-      ),
-      key: forwardTabKey,
-    );
-
-    final reverseTabList = SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) => tabContentBuilder(
-          context: context,
-          index: index,
-          isReverse: true,
-        ),
-      ),
-    );
-
-    final forwardContentKey = UniqueKey();
-    final forwardContent = SliverFillViewport(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) => contentBuilder(
-          context: context,
-          index: index,
-          isReverse: false,
-        ),
-      ),
-      key: forwardContentKey,
-    );
-
-    final reverseContent = SliverFillViewport(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) => contentBuilder(
-          context: context,
-          index: index,
-          isReverse: true,
-        ),
-      ),
-    );
-
     return Column(
       children: [
         SizedBox(
@@ -235,42 +184,102 @@ class __ContentState extends State<_Content> {
                 ),
               ),
             ),
-            child: Scrollable(
+            child: InfiniteListView(
+              itemBuilder: (context, index) => tabContentBuilder(
+                context: context,
+                index: index,
+              ),
               controller: _tabScrollController,
-              axisDirection: axisDirection,
-              viewportBuilder: (BuildContext context, ViewportOffset offset) {
-                return Viewport(
-                  offset: offset,
-                  center: forwardTabKey,
-                  slivers: [
-                    reverseTabList,
-                    forwardTabList,
-                  ],
-                  axisDirection: axisDirection,
-                );
-              },
+              axis: Axis.horizontal,
             ),
           ),
         ),
         Expanded(
-          child: Scrollable(
+          child: InfiniteListView(
+            itemBuilder: (context, index) => contentBuilder(
+              context: context,
+              index: index,
+            ),
             physics: const PageScrollPhysics(),
             controller: _pageScrollController,
-            axisDirection: axisDirection,
-            viewportBuilder: (BuildContext context, ViewportOffset offset) {
-              return Viewport(
-                offset: offset,
-                center: forwardContentKey,
-                slivers: [
-                  reverseContent,
-                  forwardContent,
-                ],
-                axisDirection: axisDirection,
-              );
-            },
+            axis: Axis.horizontal,
+            expand: true,
           ),
         ),
       ],
+    );
+  }
+}
+
+class InfiniteListView extends StatelessWidget {
+  const InfiniteListView({
+    super.key,
+    required this.itemBuilder,
+    this.controller,
+    this.axis = Axis.vertical,
+    this.physics,
+    this.expand = false,
+  });
+
+  final Widget Function(BuildContext context, int index) itemBuilder;
+  final ScrollController? controller;
+  final ScrollPhysics? physics;
+  final Axis axis;
+  final bool expand;
+
+  SliverChildDelegate _itemBuilderDelegate({
+    required bool isReverse,
+  }) {
+    return SliverChildBuilderDelegate((context, index) {
+      final i = isReverse ? -index - 1 : index;
+      return itemBuilder(
+        context,
+        i,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final axisDirection = getAxisDirectionFromAxisReverseAndDirectionality(
+      context,
+      axis,
+      false,
+    );
+
+    final forwardContentKey = UniqueKey();
+    final forwardContent = expand
+        ? SliverFillViewport(
+            key: forwardContentKey,
+            delegate: _itemBuilderDelegate(isReverse: false),
+          )
+        : SliverList(
+            key: forwardContentKey,
+            delegate: _itemBuilderDelegate(isReverse: false),
+          );
+
+    final reverseContent = expand
+        ? SliverFillViewport(
+            delegate: _itemBuilderDelegate(isReverse: true),
+          )
+        : SliverList(
+            delegate: _itemBuilderDelegate(isReverse: true),
+          );
+    return Scrollable(
+      physics: physics,
+      controller: controller,
+      axisDirection: axisDirection,
+      viewportBuilder: (BuildContext context, ViewportOffset offset) {
+        return Viewport(
+          offset: offset,
+          center: forwardContentKey,
+          slivers: [
+            reverseContent,
+            forwardContent,
+          ],
+          axisDirection: axisDirection,
+        );
+      },
     );
   }
 }

@@ -31,7 +31,7 @@ const contents = [
 ];
 
 class HomePage extends StatelessWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +45,7 @@ class HomePage extends StatelessWidget {
 }
 
 class _Content extends StatefulWidget {
-  const _Content({Key? key}) : super(key: key);
+  const _Content();
 
   @override
   __ContentState createState() => __ContentState();
@@ -63,8 +63,8 @@ class __ContentState extends State<_Content> {
   }
 
   double getPageFromPixels(double pixels, double viewportDimension) {
-    final double actual = pixels / viewportDimension;
-    final double round = actual.roundToDouble();
+    final actual = pixels / viewportDimension;
+    final round = actual.roundToDouble();
     return (actual - round).abs() < precisionErrorTolerance ? round : actual;
   }
 
@@ -80,15 +80,19 @@ class __ContentState extends State<_Content> {
         if (_isTapScrolling) {
           return;
         }
-        final page = getPageFromPixels(_pageScrollController.position.pixels,
-            _pageScrollController.position.viewportDimension);
+        final page = getPageFromPixels(
+          _pageScrollController.position.pixels,
+          _pageScrollController.position.viewportDimension,
+        );
         final index = page.round();
         if (index != _selectIndex) {
           setState(() {
             _selectIndex = index;
           });
-          _tabScrollController.scrollToIndex(index,
-              preferPosition: AutoScrollPosition.middle);
+          _tabScrollController.scrollToIndex(
+            index,
+            preferPosition: AutoScrollPosition.middle,
+          );
         }
       });
     super.initState();
@@ -101,7 +105,11 @@ class __ContentState extends State<_Content> {
     super.dispose();
   }
 
-  Widget tabContentBuilder(BuildContext context, int index, bool isReverse) {
+  Widget tabContentBuilder({
+    required BuildContext context,
+    required int index,
+    required bool isReverse,
+  }) {
     final keyIndex = isReverse ? -index - 1 : index;
     return AutoScrollTag(
       key: ValueKey(keyIndex),
@@ -113,12 +121,15 @@ class __ContentState extends State<_Content> {
             _isTapScrolling = true;
             _selectIndex = keyIndex;
           });
-          _tabScrollController.scrollToIndex(keyIndex,
-              preferPosition: AutoScrollPosition.middle);
+          await _tabScrollController.scrollToIndex(
+            keyIndex,
+            preferPosition: AutoScrollPosition.middle,
+          );
           await _pageScrollController.animateTo(
-              _pageScrollController.position.viewportDimension * keyIndex,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOut);
+            _pageScrollController.position.viewportDimension * keyIndex,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
           setState(() {
             _isTapScrolling = false;
           });
@@ -134,7 +145,7 @@ class __ContentState extends State<_Content> {
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(3.0),
+            padding: const EdgeInsets.all(3),
             child: Tab(
               text: '${contents[_convertContentIndex(keyIndex)]} #$keyIndex',
             ),
@@ -144,7 +155,11 @@ class __ContentState extends State<_Content> {
     );
   }
 
-  Widget contentBuilder(BuildContext context, int index, bool isReverse) {
+  Widget contentBuilder({
+    required BuildContext context,
+    required int index,
+    required bool isReverse,
+  }) {
     final keyIndex = isReverse ? -index - 1 : index;
     return Container(
       alignment: Alignment.center,
@@ -163,31 +178,47 @@ class __ContentState extends State<_Content> {
       Axis.horizontal,
       false,
     );
-    Key forwardTabKey = UniqueKey();
-    Widget forwardTabList = SliverList(
+    final forwardTabKey = UniqueKey();
+    final forwardTabList = SliverList(
       delegate: SliverChildBuilderDelegate(
-        (context, index) => tabContentBuilder(context, index, false),
+        (context, index) => tabContentBuilder(
+          context: context,
+          index: index,
+          isReverse: false,
+        ),
       ),
       key: forwardTabKey,
     );
 
-    Widget reverseTabList = SliverList(
+    final reverseTabList = SliverList(
       delegate: SliverChildBuilderDelegate(
-        (context, index) => tabContentBuilder(context, index, true),
+        (context, index) => tabContentBuilder(
+          context: context,
+          index: index,
+          isReverse: true,
+        ),
       ),
     );
 
-    Key forwardContentKey = UniqueKey();
-    Widget forwardContent = SliverFillViewport(
+    final forwardContentKey = UniqueKey();
+    final forwardContent = SliverFillViewport(
       delegate: SliverChildBuilderDelegate(
-        (context, index) => contentBuilder(context, index, false),
+        (context, index) => contentBuilder(
+          context: context,
+          index: index,
+          isReverse: false,
+        ),
       ),
       key: forwardContentKey,
     );
 
-    Widget reverseContent = SliverFillViewport(
+    final reverseContent = SliverFillViewport(
       delegate: SliverChildBuilderDelegate(
-        (context, index) => contentBuilder(context, index, true),
+        (context, index) => contentBuilder(
+          context: context,
+          index: index,
+          isReverse: true,
+        ),
       ),
     );
 

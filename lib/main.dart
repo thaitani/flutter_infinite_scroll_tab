@@ -29,6 +29,14 @@ const _contents = [
   'コンテンツD',
   'コンテンツEEEEEEE',
   'コンテンツFFFFF',
+  'コンテンツG',
+  'コンテンツH',
+  'コンテンツII',
+  'コンテンツJJJJ',
+  'コンテンツKKK',
+  'コンテンツLLLLL',
+  'コンテンツMMMMM',
+  'コンテンツNNNN',
 ];
 
 class HomePage extends StatelessWidget {
@@ -153,7 +161,7 @@ class __ContentState extends State<_Content> {
             border: Border(
               bottom: BorderSide(
                 color:
-                    index == _selectIndex ? Colors.black38 : Colors.transparent,
+                    index == _selectIndex ? Colors.white : Colors.transparent,
               ),
             ),
           ),

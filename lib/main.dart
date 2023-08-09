@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:scroll_to_index/scroll_to_index.dart';
 
 void main() {
   runApp(const MyApp());
@@ -7,109 +10,240 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'InfiniteScrollTab Demo',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const HomePage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+const contents = [
+  'コンテンツAAAA',
+  'コンテンツBB',
+  'コンテンツCCCCCC',
+  'コンテンツD',
+  'コンテンツEEEEEEE',
+];
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class HomePage extends StatelessWidget {
+  const HomePage({Key? key}) : super(key: key);
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('InfiniteScrollTab Demo'),
+      ),
+      body: const _Content(),
+    );
+  }
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _Content extends StatefulWidget {
+  const _Content({Key? key}) : super(key: key);
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  @override
+  __ContentState createState() => __ContentState();
+}
+
+class __ContentState extends State<_Content> {
+  late AutoScrollController _scrollController;
+  late ScrollController _pageController;
+
+  int _selectIndex = 0;
+  bool _isTapScrolling = false;
+
+  int _convertContentIndex(int index) {
+    final i = index % contents.length;
+    return i;
+  }
+
+  double getPageFromPixels(double pixels, double viewportDimension) {
+    final double actual = pixels / (viewportDimension);
+    final double round = actual.roundToDouble();
+    if ((actual - round).abs() < precisionErrorTolerance) {
+      return round;
+    }
+    return actual;
+  }
+
+  @override
+  void initState() {
+    _scrollController = AutoScrollController(axis: Axis.horizontal)
+      ..scrollToIndex(
+        _selectIndex,
+        preferPosition: AutoScrollPosition.middle,
+      );
+    _pageController = ScrollController()
+      ..addListener(() {
+        if (_isTapScrolling) {
+          return;
+        }
+        final page = getPageFromPixels(_pageController.position.pixels,
+            _pageController.position.viewportDimension);
+        final index = page.round();
+        if (index != _selectIndex) {
+          setState(() {
+            _selectIndex = index;
+          });
+          _scrollController.scrollToIndex(index,
+              preferPosition: AutoScrollPosition.middle);
+        }
+      });
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Widget tabContentBuilder(BuildContext context, int index, bool isReverse) {
+    final keyIndex = isReverse ? -index - 1 : index;
+    return AutoScrollTag(
+      key: ValueKey(keyIndex),
+      controller: _scrollController,
+      index: keyIndex,
+      child: InkWell(
+        onTap: () async {
+          setState(() {
+            _isTapScrolling = true;
+            _selectIndex = keyIndex;
+          });
+          _scrollController.scrollToIndex(keyIndex,
+              preferPosition: AutoScrollPosition.middle);
+          await _pageController.animateTo(
+              _pageController.position.viewportDimension * keyIndex,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut);
+          setState(() {
+            _isTapScrolling = false;
+          });
+        },
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: keyIndex == _selectIndex
+                    ? Colors.black
+                    : Colors.transparent,
+              ),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(3.0),
+            child: Tab(
+              text: '${contents[_convertContentIndex(keyIndex)]} #$keyIndex',
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget contentBuilder(BuildContext context, int index, bool isReverse) {
+    final keyIndex = isReverse ? -index - 1 : index;
+    return Container(
+      alignment: Alignment.center,
+      color: Colors.grey[_convertContentIndex(keyIndex) * 100],
+      child: Text(
+        '${contents[_convertContentIndex(keyIndex)]} #$keyIndex',
+        style: const TextStyle(fontSize: 30),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+    final axisDirection = getAxisDirectionFromAxisReverseAndDirectionality(
+      context,
+      Axis.horizontal,
+      false,
+    );
+    Key forwardListKey = UniqueKey();
+    Widget forwardList = SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) => tabContentBuilder(context, index, false),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
+      key: forwardListKey,
+    );
+
+    Widget reverseList = SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) => tabContentBuilder(context, index, true),
+      ),
+    );
+
+    Key forwardContentKey = UniqueKey();
+    Widget forwardContent = SliverFillViewport(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) => contentBuilder(context, index, false),
+      ),
+      key: forwardContentKey,
+    );
+
+    Widget reverseContent = SliverFillViewport(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) => contentBuilder(context, index, true),
+      ),
+    );
+
+    return Column(
+      children: [
+        SizedBox(
+          height: 50,
+          child: DecoratedBox(
+            decoration: const BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: Colors.grey,
+                  width: 0.5,
+                ),
+              ),
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+            child: Scrollable(
+              controller: _scrollController,
+              axisDirection: axisDirection,
+              viewportBuilder: (BuildContext context, ViewportOffset offset) {
+                return Viewport(
+                  offset: offset,
+                  center: forwardListKey,
+                  slivers: [
+                    reverseList,
+                    forwardList,
+                  ],
+                  axisDirection: axisDirection,
+                );
+              },
             ),
-          ],
+          ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+        Expanded(
+          child: Scrollable(
+            physics: const PageScrollPhysics(),
+            controller: _pageController,
+            axisDirection: axisDirection,
+            viewportBuilder: (BuildContext context, ViewportOffset offset) {
+              return Viewport(
+                offset: offset,
+                center: forwardContentKey,
+                slivers: [
+                  reverseContent,
+                  forwardContent,
+                ],
+                axisDirection: axisDirection,
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
